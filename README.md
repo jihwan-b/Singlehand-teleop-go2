@@ -3,7 +3,7 @@ This repository implements a **Convex Model Predictive Controller (MPC)** for th
 
 Developed as part of the **UC Berkeley Master of Engineering (MEng)** capstone project in Mechanical Engineering.
 
-> **Under development:** A C++ implementation targeting real-time performance is in progress. See the **Updates** section below for the latest status.
+> **Under development:** A ROS 2 implementation to the real-robot is in progress. See the **Updates** section below for the latest status.
 
 ## Introduction
 
