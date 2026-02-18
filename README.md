@@ -123,7 +123,7 @@ The figures below are generated from running **`examples/ex00_demo.py`**:
 <p align="center"> <img src="media/mpc_state_force_logs.png" width="900"><br/> <sub> <b>Centroidal MPC logs.</b> Optimized ground reaction forces for all four feet, joint torques, center-of-mass position and velocity, ZYX Euler angles, and body angular velocities during a command-scheduled locomotion sequence. </sub> </p>
 
 ## Updates
-02/18/2025
+02/18/2026
 - Implemented new method to discretize dynamics
 - Iteration speed is 57.4% faster, or roughly 1.57x speedup
 - Fixed quaternion order bug in go2_robot_data
