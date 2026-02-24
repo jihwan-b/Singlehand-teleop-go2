@@ -1,0 +1,78 @@
+<mujoco model="go2 circle path">
+  <include file="go2.xml"/>
+
+  <!--
+    Circle path: diameter 10 m, radius 5 m, center at (5, 0).
+    Robot spawns at (0, 0, 0.445) = pole_8, the leftmost point on the circle.
+
+    16 poles evenly spaced every 22.5°.
+    Pole position formula: (5 + 5*cos(i*22.5°),  5*sin(i*22.5°))
+
+    16 arc segments using capsule + fromto: just specify the two endpoint poles
+    and MuJoCo computes orientation automatically — no euler math needed.
+  -->
+
+  <statistic center="5 0 0" extent="7"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="-130" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="5 0 4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- ── Poles (cylinders) ────────────────────────────────────────────────
+         Red  = pole_8 at 180° → position (0, 0) = robot spawn.
+         Orange = all other poles.
+         size="radius half-height" → total height 0.5 m, bottom sits at z=0.    -->
+    <geom name="pole_0"  type="cylinder" pos="10.000  0.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_1"  type="cylinder" pos=" 9.619  1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_2"  type="cylinder" pos=" 8.536  3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_3"  type="cylinder" pos=" 6.913  4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_4"  type="cylinder" pos=" 5.000  5.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_5"  type="cylinder" pos=" 3.087  4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_6"  type="cylinder" pos=" 1.464  3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_7"  type="cylinder" pos=" 0.381  1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_8"  type="cylinder" pos=" 0.000  0.000 0.25" size="0.06 0.25" rgba="1 0.1 0.1 1" contype="0" conaffinity="0"/>
+    <geom name="pole_9"  type="cylinder" pos=" 0.381 -1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_10" type="cylinder" pos=" 1.464 -3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_11" type="cylinder" pos=" 3.087 -4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_12" type="cylinder" pos=" 5.000 -5.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_13" type="cylinder" pos=" 6.913 -4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_14" type="cylinder" pos=" 8.536 -3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_15" type="cylinder" pos=" 9.619 -1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+
+    <!-- ── Arc segments (capsules with fromto) ─────────────────────────────
+         fromto="x1 y1 z1  x2 y2 z2" — MuJoCo auto-computes orientation.
+         size = capsule radius only (no length needed).
+         z=0.04 keeps the tube just above the ground plane.              -->
+    <geom name="arc_0"  type="capsule" fromto="10.000  0.000 0.04   9.619  1.913 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_1"  type="capsule" fromto=" 9.619  1.913 0.04   8.536  3.536 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_2"  type="capsule" fromto=" 8.536  3.536 0.04   6.913  4.619 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_3"  type="capsule" fromto=" 6.913  4.619 0.04   5.000  5.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_4"  type="capsule" fromto=" 5.000  5.000 0.04   3.087  4.619 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_5"  type="capsule" fromto=" 3.087  4.619 0.04   1.464  3.536 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_6"  type="capsule" fromto=" 1.464  3.536 0.04   0.381  1.913 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_7"  type="capsule" fromto=" 0.381  1.913 0.04   0.000  0.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_8"  type="capsule" fromto=" 0.000  0.000 0.04   0.381 -1.913 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_9"  type="capsule" fromto=" 0.381 -1.913 0.04   1.464 -3.536 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_10" type="capsule" fromto=" 1.464 -3.536 0.04   3.087 -4.619 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_11" type="capsule" fromto=" 3.087 -4.619 0.04   5.000 -5.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_12" type="capsule" fromto=" 5.000 -5.000 0.04   6.913 -4.619 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_13" type="capsule" fromto=" 6.913 -4.619 0.04   8.536 -3.536 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_14" type="capsule" fromto=" 8.536 -3.536 0.04   9.619 -1.913 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_15" type="capsule" fromto=" 9.619 -1.913 0.04  10.000  0.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+
+  </worldbody>
+
+</mujoco>
