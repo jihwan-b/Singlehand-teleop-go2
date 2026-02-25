@@ -78,6 +78,12 @@ RENDER_DT  = 1.0 / RENDER_HZ
 # Status printed every N MPC solves (reduce terminal spam)
 STATUS_EVERY = 2
 
+# ── Auto-yaw constants ────────────────────────────────────────────────────────
+# Proportional gain: how aggressively the robot rotates to face movement dir.
+# Tune upward if alignment is sluggish; tune down if it oscillates.
+AUTO_YAW_GAIN      = 2.0    # (rad/s) per radian of heading error
+AUTO_YAW_MIN_SPEED = 0.1    # m/s — suppress correction when nearly still
+
 
 # ── Joint torque limits ──────────────────────────────────────────────────────
 
@@ -209,13 +215,36 @@ def main() -> None:
     next_render_t = 0.0
     wall_start    = time.perf_counter()
 
+    # ── Camera follow toggle (press T in viewer window) ──────────────────
+    _cam_follow = [True]   # list so the closure can mutate it
+    GLFW_KEY_T  = 84       # 'T' for Tracking — avoids MuJoCo's built-in 'C' (contacts)
+
+    def _key_callback(keycode: int) -> None:
+        if keycode != GLFW_KEY_T:
+            return
+        _cam_follow[0] = not _cam_follow[0]
+        if _cam_follow[0]:
+            viewer.cam.type        = mj.mjtCamera.mjCAMERA_TRACKING
+            viewer.cam.trackbodyid = mujoco_go2.model.body("base_link").id
+        else:
+            viewer.cam.type = mj.mjtCamera.mjCAMERA_FREE
+        print(f"\nCamera: {'TRACKING (follow)' if _cam_follow[0] else 'FREE (manual)'}")
+
     # ── Real-time loop ───────────────────────────────────────────────────
     with mujoco.viewer.launch_passive(
         mujoco_go2.model,
         mujoco_go2.data,
         show_left_ui=False,
         show_right_ui=False,
+        key_callback=_key_callback,
     ) as viewer:
+        # Start in tracking mode — camera follows the robot's torso
+        viewer.cam.type        = mj.mjtCamera.mjCAMERA_TRACKING
+        viewer.cam.trackbodyid = mujoco_go2.model.body("base_link").id
+        viewer.cam.distance    = 3.0    # metres behind robot
+        viewer.cam.azimuth     = 180    # look from behind (+X direction)
+        viewer.cam.elevation   = -20    # slight downward tilt
+
         try:
             while viewer.is_running():
                 sim_time = float(mujoco_go2.data.time)
@@ -246,6 +275,29 @@ def main() -> None:
                     ang_z = cmd["ang_z"]
                     z_pos = cmd["z_pos"]
                     euler_shift = cmd["euler_shift"]
+
+                    # ── Auto-yaw: rotate robot to face movement direction ──
+                    # Glove outputs world-frame velocity (cos/sin of compass
+                    # heading), so we compare desired heading vs current robot
+                    # yaw extracted from the MuJoCo quaternion.
+                    # MuJoCo qpos[3:7] = [qw, qx, qy, qz]
+                    _speed = np.hypot(x_vel, y_vel)
+                    if _speed > AUTO_YAW_MIN_SPEED:
+                        _des_yaw = np.arctan2(y_vel, x_vel)
+                        _qw, _qx, _qy, _qz = mujoco_go2.data.qpos[3:7]
+                        _cur_yaw = np.arctan2(
+                            2.0 * (_qw * _qz + _qx * _qy),
+                            1.0 - 2.0 * (_qy ** 2 + _qz ** 2),
+                        )
+                        _yaw_err = np.arctan2(
+                            np.sin(_des_yaw - _cur_yaw),
+                            np.cos(_des_yaw - _cur_yaw),
+                        )
+                        ang_z = float(np.clip(
+                            AUTO_YAW_GAIN * _yaw_err,
+                            -glove_cfg.max_ang_vel,
+                            glove_cfg.max_ang_vel,
+                        ))
 
                     # Sync Pinocchio from MuJoCo
                     mujoco_go2.update_pin_with_mujoco(go2)
