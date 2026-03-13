@@ -7,7 +7,7 @@ This project was developed as part of the **Yonsei University Human-Centered AI 
 and won **1st place** at the Yonsei University VAR Program Final Symposium.
 
 <p align="center">
-  <img src="media/VAR poster.png" width="700">
+  <img src="media/VAR Poster.png" width="420">
 </p>
 
 ---
