@@ -3,7 +3,12 @@
 Real-time teleoperation of the Unitree Go2 quadruped via a custom sensor glove,
 built on top of a Convex MPC locomotion controller in MuJoCo simulation.
 
-This project was developed as part of the **Human Centered AI Robotics Lab's 2025 Winter Internship Program**.
+This project was developed as part of the **Yonsei University Human-Centered AI Robotics Lab's 2025 Winter Internship Program**,
+and won **1st place** at the Yonsei University VAR Program Final Symposium.
+
+<p align="center">
+  <img src="media/VAR poster.png" width="700">
+</p>
 
 ---
 
