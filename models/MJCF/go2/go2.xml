@@ -75,6 +75,8 @@
       <geom size="0.05 0.045" pos="0.285 0 0.01" type="cylinder" class="collision" />
       <geom size="0.047" pos="0.293 0 -0.06" class="collision" />
       <site name="imu" pos="-0.02557 0 0.04232" />
+      <!-- 1st-person camera: mounted at Go2's head, looking forward (+X body) -->
+      <camera name="head_cam" pos="0.30 0 0.05" xyaxes="0 -1 0 0 0 1" fovy="90" />
       <body name="FL_hip" pos="0.1934 0.0465 0">
         <inertial pos="-0.0054 0.00194 -0.000105" quat="0.497014 0.499245 0.505462 0.498237"
           mass="0.678"
@@ -282,8 +284,5 @@
     <framelinvel name="frame_vel" objtype="site" objname="imu" />
   </sensor>
 
-  <keyframe>
-    <key name="home" qpos="0 0 0.27 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
-      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
-  </keyframe>
+  <!-- keyframe "home" is defined in each scene XML so spawn angle can vary per scene -->
 </mujoco>

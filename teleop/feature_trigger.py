@@ -15,13 +15,12 @@ Feature mapping  (fingerCombo bitmask, see glove_controller.py)
 0x03 (M+R)      HOLD   → Locomotion (follow heading/displacement)
                 x2 tap → RecoveryStand (zero vel, reset to stand height)
 0x06 (R+P)      [Arm manipulation — other team, ignored here]
-0x07 (M+R+P)    Locomotion + Euler tilt (TODO: full euler shift)
+0x07 (M+R+P)    Locomotion + Euler tilt
 
-TODO items
-----------
-* 0x07 Euler shift: tilt robot toward movement direction by modifying
-  roll/pitch in ComTraj.generate_traj (requires com_trajectory.py edit)
-* Thumb gesture "엄지 멀리 때기": state-hold / damp — needs separate sensor
+Glove HOVERING state (magnet at intermediate distance, united_0310.ino state 3)
+-------------------------------------------------------------------------------
+Exposed via cmd["hovering"] = True for the main loop to act on.
+Currently yields zero velocity; add specific hover-triggered behaviour here.
 """
 
 from __future__ import annotations
@@ -163,43 +162,26 @@ class DoubleTapTrigger:
 # ── Robot feature manager ────────────────────────────────────────────────────
 
 class RobotFeatureManager:
-    """Translate finger combos + thumb state into robot command modifiers.
+    """Translate finger combos + glove state into robot command modifiers.
 
     Call update() every control tick.  It returns a dict used by the main loop:
 
-        cmd = feat.update(combo, raw_vx, raw_vy, raw_wz, thumb_away, sim_time)
-        x_vel        = cmd["x_vel"]
-        y_vel        = cmd["y_vel"]
-        ang_z        = cmd["ang_z"]
-        z_pos        = cmd["z_pos"]         # desired COM height
-        euler_shift  = cmd["euler_shift"]   # True → apply tilt (run_teleop handles it)
-
-    Thumb "push-away" (DAMP state) behaviour is controlled by `damp_mode`:
-        "hold"  — freeze velocity at last commanded value indefinitely
-        "decay" — exponential decay toward zero (halves in ~damp_half_time seconds)
+        cmd = feat.update(combo, raw_vx, raw_vy, raw_wz, hovering, sim_time)
+        x_vel       = cmd["x_vel"]
+        y_vel       = cmd["y_vel"]
+        ang_z       = cmd["ang_z"]
+        z_pos       = cmd["z_pos"]         # desired COM height
+        euler_shift = cmd["euler_shift"]   # True → apply tilt
+        hovering    = cmd["hovering"]      # True → glove in HOVERING state
     """
 
     STAND_Z  = 0.27   # normal standing height (m)
     CROUCH_Z = 0.17   # crouched height (m)
 
-    def __init__(
-        self,
-        damp_mode: str   = "decay",   # "hold" or "decay"
-        damp_half_time: float = 1.0,  # seconds to halve velocity in "decay" mode
-        ctrl_dt: float   = 0.005,     # control tick period (200 Hz default)
-    ) -> None:
+    def __init__(self, ctrl_dt: float = 0.005) -> None:
         self._z_pos       = self.STAND_Z
         self._is_crouched = False
         self._status      = "IDLE"
-        self._damp_mode   = damp_mode
-        # Per-tick decay factor:  v *= factor  each control tick
-        # factor = 0.5 ^ (ctrl_dt / half_time)
-        self._damp_factor = 0.5 ** (ctrl_dt / max(damp_half_time, 1e-3))
-
-        # Last held velocity (updated each locomotion tick, used in DAMP)
-        self._held_vx: float = 0.0
-        self._held_vy: float = 0.0
-        self._held_wz: float = 0.0
 
         # Posture toggle: Ring alone (0x02) — one tap = flip stand/crouch
         self._posture_trig = ToggleTrigger()
@@ -208,25 +190,28 @@ class RobotFeatureManager:
         # max_hold=0.35s prevents accidental trigger when going in/out of loco
         self._recovery_trig = DoubleTapTrigger(window=0.6, max_hold=0.35)
 
+        # Hover stand-up/down oscillation
+        self._hover_entry_time: float | None = None
+
     # ── Main entry point ─────────────────────────────────────────────────────
 
     def update(
         self,
-        combo:       int,
-        raw_vx:      float,
-        raw_vy:      float,
-        raw_wz:      float,
-        thumb_away:  bool,
-        t:           float,
+        combo:    int,
+        raw_vx:   float,
+        raw_vy:   float,
+        raw_wz:   float,
+        hovering: bool,
+        t:        float,
     ) -> dict:
-        """Process finger combo + thumb gesture → command dict.
+        """Process finger combo + glove hovering state → command dict.
 
         Parameters
         ----------
-        combo      : fingerCombo bitmask from GloveController
-        raw_vx/vy/wz : velocity from GloveController
-        thumb_away : True when glove is in DAMP state (thumb partially retracted)
-        t          : simulation time (seconds)
+        combo    : fingerCombo bitmask from GloveController
+        raw_vx/vy/wz : velocity from GloveController (zero when not ON)
+        hovering : True when glove is in HOVERING state (magnet at mid-distance)
+        t        : simulation time (seconds)
         """
 
         # ── 1. Posture toggle (Ring alone, 0x02) ─────────────────────────
@@ -238,34 +223,32 @@ class RobotFeatureManager:
         if self._recovery_trig.update(combo == COMBO_MIDDLE_RING, t):
             self._is_crouched = False
             self._z_pos       = self.STAND_Z
-            self._held_vx = self._held_vy = self._held_wz = 0.0
             self._status      = "RECOVERY"
-            return self._cmd(0.0, 0.0, 0.0, euler_shift=False)
+            return self._cmd(0.0, 0.0, 0.0, euler_shift=False, hovering=False)
 
-        # ── 3. Thumb-away (DAMP state): hold or decay last velocity ──────
-        if thumb_away:
-            if self._damp_mode == "hold":
-                self._status = "DAMP[HOLD]"
-                return self._cmd(self._held_vx, self._held_vy, self._held_wz,
-                                 euler_shift=False)
-            else:   # "decay"
-                self._held_vx *= self._damp_factor
-                self._held_vy *= self._damp_factor
-                self._held_wz *= self._damp_factor
-                self._status = "DAMP[DCY]"
-                return self._cmd(self._held_vx, self._held_vy, self._held_wz,
-                                 euler_shift=False)
+        # ── 3. HOVERING state: glove at intermediate distance ─────────────
+        if hovering:
+            if self._hover_entry_time is None:
+                self._hover_entry_time = t
+            hover_elapsed = t - self._hover_entry_time
+            if hover_elapsed >= 2.0:
+                phase = (hover_elapsed - 2.0) % 1.0
+                self._z_pos = self.CROUCH_Z if phase >= 0.5 else self.STAND_Z
+            self._status = "HOVER"
+            return self._cmd(0.0, 0.0, 0.0, euler_shift=False, hovering=True)
+        elif self._hover_entry_time is not None:
+            # Exiting hover — restore z_pos to the user-set posture
+            self._hover_entry_time = None
+            self._z_pos = self.CROUCH_Z if self._is_crouched else self.STAND_Z
 
         # ── 4. Locomotion combos (M+R or M+R+P) ──────────────────────────
         if combo in _LOCO_COMBOS:
             euler_shift = (combo == COMBO_MIDDLE_RING_PINKY)
             self._status = "LOCO+EULER" if euler_shift else "LOCO"
-            # Update held velocity for potential DAMP use
-            self._held_vx, self._held_vy, self._held_wz = raw_vx, raw_vy, raw_wz
-            return self._cmd(raw_vx, raw_vy, raw_wz, euler_shift=euler_shift)
+            return self._cmd(raw_vx, raw_vy, raw_wz, euler_shift=euler_shift,
+                             hovering=False)
 
-        # ── 5. Everything else → stand still, clear held velocity ────────
-        self._held_vx = self._held_vy = self._held_wz = 0.0
+        # ── 5. Everything else → stand still ─────────────────────────────
         _LABELS = {
             COMBO_NONE:      "IDLE",
             COMBO_MIDDLE:    "MID[VR]",    # other team
@@ -273,17 +256,19 @@ class RobotFeatureManager:
             COMBO_RING_PINKY:"R+P[ARM]",   # other team
         }
         self._status = _LABELS.get(combo, f"COMBO:{combo:03b}")
-        return self._cmd(0.0, 0.0, 0.0, euler_shift=False)
+        return self._cmd(0.0, 0.0, 0.0, euler_shift=False, hovering=False)
 
     # ── Helpers ──────────────────────────────────────────────────────────────
 
-    def _cmd(self, vx: float, vy: float, wz: float, euler_shift: bool) -> dict:
+    def _cmd(self, vx: float, vy: float, wz: float,
+             euler_shift: bool, hovering: bool) -> dict:
         return {
             "x_vel":       vx,
             "y_vel":       vy,
             "ang_z":       wz,
             "z_pos":       self._z_pos,
             "euler_shift": euler_shift,
+            "hovering":    hovering,
         }
 
     def status_str(self) -> str:

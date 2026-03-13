@@ -47,22 +47,22 @@
          Red  = pole_8 at 180° → position (0, 0) = robot spawn.
          Orange = all other poles.
          size="radius half-height" → total height 0.5 m, bottom sits at z=0.    -->
-    <geom name="pole_0"  type="cylinder" pos="10.000  0.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_1"  type="cylinder" pos=" 9.619  1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_2"  type="cylinder" pos=" 8.536  3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_3"  type="cylinder" pos=" 6.913  4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_4"  type="cylinder" pos=" 5.000  5.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_5"  type="cylinder" pos=" 3.087  4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_6"  type="cylinder" pos=" 1.464  3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_7"  type="cylinder" pos=" 0.381  1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_0"  type="cylinder" pos="10.000  0.000 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_1"  type="cylinder" pos=" 9.619  1.913 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_2"  type="cylinder" pos=" 8.536  3.536 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_3"  type="cylinder" pos=" 6.913  4.619 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_4"  type="cylinder" pos=" 5.000  5.000 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_5"  type="cylinder" pos=" 3.087  4.619 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_6"  type="cylinder" pos=" 1.464  3.536 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_7"  type="cylinder" pos=" 0.381  1.913 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
     <geom name="pole_8"  type="cylinder" pos=" 0.000  0.000 0.25" size="0.06 0.25" rgba="1 0.1 0.1 1" contype="0" conaffinity="0"/>
-    <geom name="pole_9"  type="cylinder" pos=" 0.381 -1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_10" type="cylinder" pos=" 1.464 -3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_11" type="cylinder" pos=" 3.087 -4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_12" type="cylinder" pos=" 5.000 -5.000 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_13" type="cylinder" pos=" 6.913 -4.619 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_14" type="cylinder" pos=" 8.536 -3.536 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="pole_15" type="cylinder" pos=" 9.619 -1.913 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="pole_9"  type="cylinder" pos=" 0.381 -1.913 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_10" type="cylinder" pos=" 1.464 -3.536 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_11" type="cylinder" pos=" 3.087 -4.619 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_12" type="cylinder" pos=" 5.000 -5.000 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_13" type="cylinder" pos=" 6.913 -4.619 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_14" type="cylinder" pos=" 8.536 -3.536 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_15" type="cylinder" pos=" 9.619 -1.913 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
 
     <!-- ── Arc segments (capsules with fromto) ─────────────────────────────
          fromto="x1 y1 z1  x2 y2 z2" — MuJoCo auto-computes orientation.
@@ -146,5 +146,12 @@
     <geom name="wall_in_15" type="box" pos="9.157 -1.723 0.25" size="0.90 0.05 0.25" euler="0 0 1.1781" rgba="0.55 0.55 0.55 1"/>
 
   </worldbody>
+
+  <!-- Spawn facing CW 90° (south, -Y direction) -->
+  <!-- yaw=-90° → qw=cos(-45°)=0.7071, qz=sin(-45°)=-0.7071 -->
+  <keyframe>
+    <key name="home" qpos="0 0 0.27 0.7071 0 0 -0.7071 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
+  </keyframe>
 
 </mujoco>

@@ -110,7 +110,7 @@ _STATE_COLOR = {
     "OFF":     "#555555",
     "WAITING": "#FFA500",
     "ON":      "#00CC44",
-    "DAMP":    "#6699FF",
+    "HOVERING":"#6699FF",
 }
 
 
@@ -151,51 +151,47 @@ class TeleopHUD:
         import numpy as np
 
         plt.ion()
-        fig = plt.figure("Go2 Teleop HUD", figsize=(5.4, 5))
+        fig = plt.figure("Go2 Teleop HUD", figsize=(2.16, 6))
         fig.patch.set_facecolor("#1a1a2e")
 
         gs = gridspec.GridSpec(
-            2, 2,
+            3, 1,
             figure=fig,
-            left=0.07, right=0.97,
-            top=0.93,  bottom=0.10,
-            hspace=0.45, wspace=0.35,
+            left=0.12, right=0.96,
+            top=0.97,  bottom=0.07,
+            hspace=0.55,
+            height_ratios=[1.1, 2.2, 1.8],
         )
 
-        # ── strip chart (top, spans both columns) ────────────────────────
-        ax_strip = fig.add_subplot(gs[0, :])
-        ax_strip.set_facecolor("#0d0d1a")
-        ax_strip.set_title("Velocity history", color="white", fontsize=9)
-        ax_strip.set_ylabel("m/s  |  rad/s", color="#aaaaaa", fontsize=8)
-        ax_strip.tick_params(colors="#aaaaaa", labelsize=7)
-        for spine in ax_strip.spines.values():
+        # ── digital readout (top) ─────────────────────────────────────────
+        ax_dig = fig.add_subplot(gs[0])
+        ax_dig.set_facecolor("#0d0d1a")
+        ax_dig.axis("off")
+        for spine in ax_dig.spines.values():
             spine.set_edgecolor("#333355")
-        ax_strip.set_xlim(0, self._state.HIST_LEN)
-        ax_strip.set_ylim(-2.0, 2.0)
-        ax_strip.axhline(0, color="#333355", linewidth=0.8)
 
-        (line_vx,) = ax_strip.plot([], [], color="#FF4444", lw=1.2, label="vx")
-        (line_vy,) = ax_strip.plot([], [], color="#44FF88", lw=1.2, label="vy")
-        (line_wz,) = ax_strip.plot([], [], color="#4488FF", lw=1.2, label="wz")
-        ax_strip.legend(
-            loc="upper left", fontsize=7,
-            facecolor="#1a1a2e", edgecolor="#333355", labelcolor="white",
-        )
+        txt_state  = ax_dig.text(0.04, 0.82, "GLOVE: OFF",       color="#555555", fontsize=10, transform=ax_dig.transAxes, fontweight="bold")
+        txt_combo  = ax_dig.text(0.04, 0.58, "Fingers: ---",     color="#aaaaaa", fontsize=8,  transform=ax_dig.transAxes)
+        txt_vx     = ax_dig.text(0.04, 0.38, "vx:  +0.00 m/s",  color="#FF4444", fontsize=8,  transform=ax_dig.transAxes, family="monospace")
+        txt_vy     = ax_dig.text(0.54, 0.38, "vy:  +0.00 m/s",  color="#44FF88", fontsize=8,  transform=ax_dig.transAxes, family="monospace")
+        txt_wz     = ax_dig.text(0.04, 0.14, "wz:  +0.00 r/s",  color="#4488FF", fontsize=8,  transform=ax_dig.transAxes, family="monospace")
+        txt_status = ax_dig.text(0.54, 0.14, "IDLE  z=0.27",    color="#888888", fontsize=8,  transform=ax_dig.transAxes)
+        txt_time   = ax_dig.text(0.54, 0.58, "t=0.0 s",         color="#aaaaaa", fontsize=8,  transform=ax_dig.transAxes)
 
-        # ── polar radar (bottom-left) ─────────────────────────────────────
-        ax_polar = fig.add_subplot(gs[1, 0], projection="polar")
+        # ── polar radar (middle) ──────────────────────────────────────────
+        ax_polar = fig.add_subplot(gs[1], projection="polar")
         ax_polar.set_facecolor("#0d0d1a")
-        ax_polar.set_title("Velocity vector", color="white", fontsize=9, pad=8)
+        ax_polar.set_title("Velocity vector", color="white", fontsize=8, pad=6)
         ax_polar.set_theta_zero_location("N")
         ax_polar.set_theta_direction(-1)
-        ax_polar.tick_params(colors="#555577", labelsize=7)
+        ax_polar.tick_params(colors="#555577", labelsize=6)
         ax_polar.set_ylim(0, 1.0)
         ax_polar.set_rlabel_position(45)
-        ax_polar.yaxis.set_tick_params(labelsize=6, colors="#555577")
+        ax_polar.yaxis.set_tick_params(labelsize=5, colors="#555577")
         for spine in ax_polar.spines.values():
             spine.set_edgecolor("#333355")
 
-        (polar_arrow,) = ax_polar.plot([], [], "o-", color="#FF4444", lw=2, ms=5)
+        (polar_arrow,) = ax_polar.plot([], [], "o-", color="#FF4444", lw=2, ms=4)
         circle_max = ax_polar.plot(
             np.linspace(0, 2 * np.pi, 200), [1.0] * 200,
             "--", color="#333355", lw=0.8,
@@ -203,18 +199,25 @@ class TeleopHUD:
         # wz arc indicator
         (wz_arc,) = ax_polar.plot([], [], color="#4488FF", lw=2, alpha=0.7)
 
-        # ── digital readout (bottom-right) ───────────────────────────────
-        ax_dig = fig.add_subplot(gs[1, 1])
-        ax_dig.set_facecolor("#0d0d1a")
-        ax_dig.axis("off")
+        # ── strip chart (bottom) ──────────────────────────────────────────
+        ax_strip = fig.add_subplot(gs[2])
+        ax_strip.set_facecolor("#0d0d1a")
+        ax_strip.set_title("Velocity history", color="white", fontsize=8)
+        ax_strip.set_ylabel("m/s | r/s", color="#aaaaaa", fontsize=7)
+        ax_strip.tick_params(colors="#aaaaaa", labelsize=6)
+        for spine in ax_strip.spines.values():
+            spine.set_edgecolor("#333355")
+        ax_strip.set_xlim(0, self._state.HIST_LEN)
+        ax_strip.set_ylim(-2.0, 2.0)
+        ax_strip.axhline(0, color="#333355", linewidth=0.8)
 
-        txt_time   = ax_dig.text(0.05, 0.92, "t=0.0 s",         color="#aaaaaa", fontsize=8,  transform=ax_dig.transAxes)
-        txt_state  = ax_dig.text(0.05, 0.75, "GLOVE: OFF",       color="#555555", fontsize=11, transform=ax_dig.transAxes, fontweight="bold")
-        txt_combo  = ax_dig.text(0.05, 0.58, "Fingers: ---",     color="#aaaaaa", fontsize=9,  transform=ax_dig.transAxes)
-        txt_vx     = ax_dig.text(0.05, 0.44, "vx:  +0.00 m/s",  color="#FF4444", fontsize=9,  transform=ax_dig.transAxes, family="monospace")
-        txt_vy     = ax_dig.text(0.05, 0.32, "vy:  +0.00 m/s",  color="#44FF88", fontsize=9,  transform=ax_dig.transAxes, family="monospace")
-        txt_wz     = ax_dig.text(0.05, 0.20, "wz:  +0.00 r/s",  color="#4488FF", fontsize=9,  transform=ax_dig.transAxes, family="monospace")
-        txt_status = ax_dig.text(0.05, 0.06, "IDLE   z=0.27",   color="#888888", fontsize=8,  transform=ax_dig.transAxes)
+        (line_vx,) = ax_strip.plot([], [], color="#FF4444", lw=1.0, label="vx")
+        (line_vy,) = ax_strip.plot([], [], color="#44FF88", lw=1.0, label="vy")
+        (line_wz,) = ax_strip.plot([], [], color="#4488FF", lw=1.0, label="wz")
+        ax_strip.legend(
+            loc="upper left", fontsize=6,
+            facecolor="#1a1a2e", edgecolor="#333355", labelcolor="white",
+        )
 
         plt.show(block=False)
 
@@ -262,7 +265,7 @@ class TeleopHUD:
             txt_vx.set_text(f"vx:  {s['vx']:+.2f} m/s")
             txt_vy.set_text(f"vy:  {s['vy']:+.2f} m/s")
             txt_wz.set_text(f"wz:  {s['wz']:+.2f} r/s")
-            txt_status.set_text(f"{s['status']:<12s}  z={s['z_pos']:.2f}")
+            txt_status.set_text(f"{s['status']:<8s} z={s['z_pos']:.2f}")
 
             fig.canvas.draw_idle()
             fig.canvas.flush_events()

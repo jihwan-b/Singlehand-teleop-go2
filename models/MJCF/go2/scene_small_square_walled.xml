@@ -1,0 +1,71 @@
+<mujoco model="go2 small square path walled">
+  <include file="go2.xml"/>
+
+  <!--
+    Small square path: 4 m × 4 m
+    Robot spawns at corner (0, 0) — marked red.
+    Walk CW: (0,0) → (4,0) → (4,4) → (0,4) → back to (0,0)
+
+    Corridor: 1 m wide.
+    Outer walls: 0.5 m outside each edge.
+    Inner walls: 0.5 m inside each edge, with 0.5 m gaps at each corner.
+      South inner:  x = 0.5 → 3.5  (half-len 1.5, centre x=2.0)
+      East  inner:  y = 0.5 → 3.5  (half-len 1.5, centre y=2.0)
+      North inner:  x = 0.5 → 3.5
+      West  inner:  y = 0.5 → 3.5
+  -->
+
+  <statistic center="2 2 0" extent="4"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="-130" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="2 2 4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- ── Corner poles ───────────────────────────────────────────────────
+         Red = spawn/finish at (0,0),  Orange = intermediate corners     -->
+    <geom name="corner_start" type="cylinder" pos="0 0 0.25" size="0.06 0.25" rgba="1.0 0.1 0.1 1" contype="0" conaffinity="0"/>
+    <geom name="corner_1"     type="cylinder" pos="4 0 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="corner_2"     type="cylinder" pos="4 4 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="corner_3"     type="cylinder" pos="0 4 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+
+    <!-- ── Edge lines (yellow, non-collidable) ──────────────────────── -->
+    <geom name="edge_south" type="box" pos="2 0 0.01" size="2    0.04 0.01" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="edge_east"  type="box" pos="4 2 0.01" size="0.04 2    0.01" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="edge_north" type="box" pos="2 4 0.01" size="2    0.04 0.01" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="edge_west"  type="box" pos="0 2 0.01" size="0.04 2    0.01" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+
+    <!-- ── Outer walls (0.5 m outside each edge) ────────────────────── -->
+    <geom name="wall_south_outer" type="box" pos=" 2.0 -0.5 0.25" size="2.5  0.05 0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_east_outer"  type="box" pos=" 4.5  2.0 0.25" size="0.05 2.5  0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_north_outer" type="box" pos=" 2.0  4.5 0.25" size="2.5  0.05 0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_west_outer"  type="box" pos="-0.5  2.0 0.25" size="0.05 2.5  0.25" rgba="0.55 0.55 0.55 1"/>
+
+    <!-- ── Inner walls (0.5 m inside each edge, 0.5 m corner gaps) ───
+         Each inner wall runs from 0.5 to 3.5 m along its edge.       -->
+    <geom name="wall_south_inner" type="box" pos="2.0  0.5 0.25" size="1.5  0.05 0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_east_inner"  type="box" pos="3.5  2.0 0.25" size="0.05 1.5  0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_north_inner" type="box" pos="2.0  3.5 0.25" size="1.5  0.05 0.25" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_west_inner"  type="box" pos="0.5  2.0 0.25" size="0.05 1.5  0.25" rgba="0.55 0.55 0.55 1"/>
+
+  </worldbody>
+
+  <!-- Spawn facing +X (toward corner_1 at (4, 0)) -->
+  <keyframe>
+    <key name="home" qpos="0 0 0.27 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
+  </keyframe>
+
+</mujoco>

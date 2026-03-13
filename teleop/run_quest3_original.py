@@ -200,29 +200,19 @@ def main() -> None:
     wall_start    = time.perf_counter()
 
     # ── Camera follow toggle (T key) ──────────────────────────────────────
-    # 0 = FREE  |  1 = 3rd-person behind  |  2 = 1st-person (head cam)
-    _cam_mode = [1]
-    _CAM_LABELS = {0: "FREE (manual)", 1: "3rd-person (behind)", 2: "1st-person (head cam)"}
+    _cam_follow = [True]
     GLFW_KEY_T  = 84
-
-    def _apply_cam_mode(mode: int) -> None:
-        if mode == 1:
-            viewer.cam.type        = mj.mjtCamera.mjCAMERA_TRACKING
-            viewer.cam.trackbodyid = mujoco_go2.model.body("base_link").id
-            viewer.cam.distance    = 2.5
-            viewer.cam.elevation   = -20.0
-        elif mode == 2:
-            viewer.cam.type       = mj.mjtCamera.mjCAMERA_FIXED
-            viewer.cam.fixedcamid = mujoco_go2.model.camera("head_cam").id
-        else:
-            viewer.cam.type = mj.mjtCamera.mjCAMERA_FREE
 
     def _key_callback(keycode: int) -> None:
         if keycode != GLFW_KEY_T:
             return
-        _cam_mode[0] = (_cam_mode[0] + 1) % 3
-        _apply_cam_mode(_cam_mode[0])
-        print(f"\nCamera: {_CAM_LABELS[_cam_mode[0]]}")
+        _cam_follow[0] = not _cam_follow[0]
+        if _cam_follow[0]:
+            viewer.cam.type        = mj.mjtCamera.mjCAMERA_TRACKING
+            viewer.cam.trackbodyid = mujoco_go2.model.body("base_link").id
+        else:
+            viewer.cam.type = mj.mjtCamera.mjCAMERA_FREE
+        print(f"\nCamera: {'TRACKING (follow)' if _cam_follow[0] else 'FREE (manual)'}")
 
     # ── Real-time loop ────────────────────────────────────────────────────
     with mujoco.viewer.launch_passive(
@@ -232,7 +222,11 @@ def main() -> None:
         show_right_ui=False,
         key_callback=_key_callback,
     ) as viewer:
-        _apply_cam_mode(_cam_mode[0])
+        viewer.cam.type        = mj.mjtCamera.mjCAMERA_TRACKING
+        viewer.cam.trackbodyid = mujoco_go2.model.body("base_link").id
+        viewer.cam.distance    = 3.0
+        viewer.cam.azimuth     = 180
+        viewer.cam.elevation   = -20
 
         try:
             while viewer.is_running():
@@ -260,13 +254,10 @@ def main() -> None:
                     z_pos = cmd["z_pos"]
                     euler_shift = cmd["euler_shift"]
 
-                    # MR  (0x03): manual yaw via right stick.
-                    # MRP (0x07): fixed-orientation translation — force ang_z=0.
-                    if euler_shift:
-                        ang_z = 0.0
-
-                    # Quest 3 left stick = body-frame velocity.
-                    # generate_traj already rotates body→world internally, so pass directly.
+                    # NOTE: No auto-yaw here.
+                    # Quest 3 outputs body-frame velocity directly (left stick = robot
+                    # forward/strafe, right stick = yaw).  The robot turns where you
+                    # point it — you are in full manual control of heading.
 
                     # Sync Pinocchio from MuJoCo
                     mujoco_go2.update_pin_with_mujoco(go2)
@@ -278,6 +269,14 @@ def main() -> None:
                             x_vel, y_vel, z_pos, ang_z,
                             time_step=MPC_DT,
                         )
+
+                        if euler_shift:
+                            EULER_LEAN_GAIN = 0.12
+                            MAX_LEAN_RAD    = 0.20
+                            traj.rpy_traj_world[1, :] = np.clip(-EULER_LEAN_GAIN * x_vel,
+                                                                 -MAX_LEAN_RAD, MAX_LEAN_RAD)
+                            traj.rpy_traj_world[0, :] = np.clip(-EULER_LEAN_GAIN * y_vel,
+                                                                 -MAX_LEAN_RAD, MAX_LEAN_RAD)
 
                         sol   = mpc.solve_QP(go2, traj, False)
                         N     = traj.N
@@ -325,13 +324,6 @@ def main() -> None:
 
                 # Viewer sync at RENDER_HZ
                 if float(mujoco_go2.data.time) >= next_render_t:
-                    if _cam_mode[0] == 1:
-                        _qw, _qx, _qy, _qz = mujoco_go2.data.qpos[3:7]
-                        _yaw = np.arctan2(
-                            2.0 * (_qw * _qz + _qx * _qy),
-                            1.0 - 2.0 * (_qy ** 2 + _qz ** 2),
-                        )
-                        viewer.cam.azimuth = np.degrees(_yaw)
                     viewer.sync()
                     next_render_t += RENDER_DT
 

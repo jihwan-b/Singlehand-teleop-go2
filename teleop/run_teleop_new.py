@@ -1,21 +1,32 @@
-"""Go2 Glove Teleoperation  —  real-time MuJoCo simulation.
+"""Go2 Glove Teleoperation (body-frame joystick mode)  —  real-time MuJoCo simulation.
+
+Glove magnetometer heading is interpreted in body frame (like a joystick),
+not as an absolute compass direction.  No auto-yaw.
 
 Usage
 -----
-    # from project root:
-    python teleop/run_teleop.py
-    python teleop/run_teleop.py --port COM3          # Windows
-    python teleop/run_teleop.py --mode differential
-    python teleop/run_teleop.py --maxv 0.6 --maxw 1.2
-    python teleop/run_teleop.py --no-hud           # disable live HUD panel
+    python teleop/run_teleop_new.py
+    python teleop/run_teleop_new.py --port /dev/ttyACM0
+    python teleop/run_teleop_new.py --maxv 0.6 --maxw 1.2
+    python teleop/run_teleop_new.py --no-hud
 
 Controls (finger combos)
 ------------------------
-  Middle+Ring held       →  Locomotion (follow glove heading / displacement)
-  Ring tap (alone)       →  Posture toggle  StandUp ↔ StandDown
-  Middle+Ring  ×2 quick  →  RecoveryStand  (zero vel + reset height)
-  M+Ring+Pinky held      →  Locomotion + Euler tilt  (TODO)
-  No fingers / glove OFF →  Robot trots in place (zero velocity)
+  Middle+Ring held (MR)        →  Holonomic locomotion
+                                   Glove tilt → body-frame (vx, vy), no yaw change
+                                   Like Quest3 left stick only
+  Middle+Ring+Pinky held (MRP) →  Differential locomotion + yaw
+                                   Glove forward → vx,  Glove sideways → ang_z
+                                   Like Quest3 left + right stick (single input)
+  Ring tap (alone)             →  Posture toggle  StandUp ↔ StandDown
+  Middle+Ring  ×2 quick        →  RecoveryStand
+  No fingers / glove OFF       →  Robot trots in place (zero velocity)
+
+Camera (press T in viewer)
+--------------------------
+  Mode 1  →  3rd-person follow (behind robot, azimuth tracks yaw)
+  Mode 2  →  1st-person (Go2 head camera)
+  Mode 0  →  Free camera (manual)
 
 Glove activation
 ----------------
@@ -75,14 +86,7 @@ STEPS_PER_MPC = max(1, int(CTRL_HZ // MPC_HZ))   # ≈ 4 control ticks per MPC
 RENDER_HZ  = 60.0
 RENDER_DT  = 1.0 / RENDER_HZ
 
-# Status printed every N MPC solves (reduce terminal spam)
 STATUS_EVERY = 2
-
-# ── Auto-yaw constants ────────────────────────────────────────────────────────
-# Proportional gain: how aggressively the robot rotates to face movement dir.
-# Tune upward if alignment is sluggish; tune down if it oscillates.
-AUTO_YAW_GAIN      = 2.0    # (rad/s) per radian of heading error
-AUTO_YAW_MIN_SPEED = 0.1    # m/s — suppress correction when nearly still
 
 
 # ── Joint torque limits ──────────────────────────────────────────────────────
@@ -144,12 +148,9 @@ def _print_status(
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Go2 glove teleoperation")
+    parser = argparse.ArgumentParser(description="Go2 glove teleoperation (body-frame joystick)")
     parser.add_argument("--port",  default="/dev/ttyACM0",
                         help="Serial port (default: /dev/ttyACM0)")
-    parser.add_argument("--mode",  default="holonomic",
-                        choices=["holonomic", "differential"],
-                        help="Control mode (default: holonomic)")
     parser.add_argument("--maxv",  type=float, default=0.8,
                         help="Max linear velocity in m/s (default: 0.8)")
     parser.add_argument("--maxw",  type=float, default=1.5,
@@ -170,15 +171,13 @@ def main() -> None:
     mujoco_go2.update_with_q_pin(q_init)
     mujoco_go2.model.opt.timestep = SIM_DT
 
-    # First MPC trajectory (zero velocity) — needed to build CentroidalMPC
     traj.generate_traj(go2, gait, 0.0, 0.0, 0.0, 0.27, 0.0, time_step=MPC_DT)
     mpc   = CentroidalMPC(go2, traj)
-    U_opt = np.zeros((12, traj.N), dtype=float)   # safe default until first solve
+    U_opt = np.zeros((12, traj.N), dtype=float)
 
     # ── Glove + feature manager ──────────────────────────────────────────
     glove_cfg = GloveConfig(
         port=args.port,
-        control_mode=args.mode,
         max_lin_vel=args.maxv,
         max_ang_vel=args.maxw,
     )
@@ -198,16 +197,16 @@ def main() -> None:
 
     # ── Banner ───────────────────────────────────────────────────────────
     print("─" * 70)
-    print("Go2 Glove Teleop  |  close viewer window or Ctrl-C to stop")
-    print(f"  Port: {args.port}  Mode: {args.mode}  "
-          f"MaxV: {args.maxv} m/s  MaxW: {args.maxw} rad/s")
-    print("  Fingers  MR- = Loco  |  -R- tap = Posture  |  MR- ×2 = Recovery  |  MRP = Loco+Euler")
-    print(f"  Glove HOVER state = intermediate magnet distance")
+    print("Go2 Glove Teleop (body-frame joystick)  |  close viewer or Ctrl-C to stop")
+    print(f"  Port: {args.port}  MaxV: {args.maxv} m/s  MaxW: {args.maxw} rad/s")
+    print("  MR-  = Holonomic (vx+vy, no yaw)  |  MRP = Differential (vx+wz)")
+    print("  -R-  tap = Posture  |  MR- ×2 = Recovery")
+    print("  Press T in viewer to cycle camera: 3rd-person → 1st-person → Free")
     print("─" * 70)
 
     # ── Loop state ───────────────────────────────────────────────────────
-    k             = 0       # physics step counter
-    ctrl_i        = 0       # control tick counter
+    k             = 0
+    ctrl_i        = 0
     tau_hold      = np.zeros(12, dtype=float)
     next_render_t = 0.0
     wall_start    = time.perf_counter()
@@ -216,7 +215,7 @@ def main() -> None:
     # 0 = FREE  |  1 = 3rd-person behind  |  2 = 1st-person (head cam)
     _cam_mode = [1]
     _CAM_LABELS = {0: "FREE (manual)", 1: "3rd-person (behind)", 2: "1st-person (head cam)"}
-    GLFW_KEY_T  = 84       # 'T' — avoids MuJoCo's built-in 'C' (contacts)
+    GLFW_KEY_T  = 84
 
     def _apply_cam_mode(mode: int) -> None:
         if mode == 1:
@@ -225,7 +224,7 @@ def main() -> None:
             viewer.cam.distance    = 2.5
             viewer.cam.elevation   = -20.0
         elif mode == 2:
-            viewer.cam.type    = mj.mjtCamera.mjCAMERA_FIXED
+            viewer.cam.type       = mj.mjtCamera.mjCAMERA_FIXED
             viewer.cam.fixedcamid = mujoco_go2.model.camera("head_cam").id
         else:  # FREE
             viewer.cam.type = mj.mjtCamera.mjCAMERA_FREE
@@ -245,7 +244,6 @@ def main() -> None:
         show_right_ui=False,
         key_callback=_key_callback,
     ) as viewer:
-        # Start in 3rd-person tracking mode
         _apply_cam_mode(_cam_mode[0])
 
         try:
@@ -253,9 +251,6 @@ def main() -> None:
                 sim_time = float(mujoco_go2.data.time)
 
                 # ── Real-time pacing ─────────────────────────────────────
-                # Sleep if simulation clock is running ahead of wall clock.
-                # When an MPC solve takes >1 ms the loop falls behind briefly
-                # and catches up on the next several (cheap) physics steps.
                 wall_elapsed = time.perf_counter() - wall_start
                 ahead = sim_time - wall_elapsed
                 if ahead > 0.0:
@@ -273,73 +268,34 @@ def main() -> None:
                     # Feature manager → final commands
                     cmd   = feat.update(combo, raw_vx, raw_vy, raw_wz,
                                         hovering, sim_time)
-                    x_vel = cmd["x_vel"]
+                    x_vel = cmd["x_vel"]   # world-frame from glove magnetometer
                     y_vel = cmd["y_vel"]
-                    ang_z = cmd["ang_z"]
                     z_pos = cmd["z_pos"]
-                    euler_shift = cmd["euler_shift"]
+                    euler_shift = cmd["euler_shift"]  # True when combo = MRP (0x07)
 
-                    # ── Auto-yaw (MR only): rotate robot to face movement direction ──
-                    # Glove outputs world-frame velocity (cos/sin of compass
-                    # heading), so we compare desired heading vs current robot
-                    # yaw extracted from the MuJoCo quaternion.
-                    # MuJoCo qpos[3:7] = [qw, qx, qy, qz]
-                    #
-                    # MRP (euler_shift) = fixed-orientation translation: no auto-yaw,
-                    # ang_z forced to 0 so the robot strafes without rotating.
-                    if euler_shift:
-                        ang_z = 0.0
-                    elif _cam_mode[0] == 2:
-                        # 1st-person joystick mode: glove heading is body-relative.
-                        # Side component → continuous turning; forward component → speed.
-                        # (World→body conversion below already handles x_vel_b correctly.)
-                        _speed = np.hypot(x_vel, y_vel)
-                        if _speed > AUTO_YAW_MIN_SPEED:
-                            _qw, _qx, _qy, _qz = mujoco_go2.data.qpos[3:7]
-                            _cur_yaw = np.arctan2(
-                                2.0 * (_qw * _qz + _qx * _qy),
-                                1.0 - 2.0 * (_qy ** 2 + _qz ** 2),
-                            )
-                            _heading_rel = np.arctan2(y_vel, x_vel) - _cur_yaw
-                            ang_z = float(np.clip(
-                                glove_cfg.max_ang_vel * np.sin(_heading_rel),
-                                -glove_cfg.max_ang_vel,
-                                glove_cfg.max_ang_vel,
-                            ))
-                        else:
-                            ang_z = 0.0
-                    else:
-                        _speed = np.hypot(x_vel, y_vel)
-                        if _speed > AUTO_YAW_MIN_SPEED:
-                            _des_yaw = np.arctan2(y_vel, x_vel)
-                            _qw, _qx, _qy, _qz = mujoco_go2.data.qpos[3:7]
-                            _cur_yaw = np.arctan2(
-                                2.0 * (_qw * _qz + _qx * _qy),
-                                1.0 - 2.0 * (_qy ** 2 + _qz ** 2),
-                            )
-                            _yaw_err = np.arctan2(
-                                np.sin(_des_yaw - _cur_yaw),
-                                np.cos(_des_yaw - _cur_yaw),
-                            )
-                            ang_z = float(np.clip(
-                                AUTO_YAW_GAIN * _yaw_err,
-                                -glove_cfg.max_ang_vel,
-                                glove_cfg.max_ang_vel,
-                            ))
-
-                    # Sync Pinocchio from MuJoCo
+                    # ── Sync Pinocchio from MuJoCo ───────────────────────
                     mujoco_go2.update_pin_with_mujoco(go2)
 
-                    # Glove outputs world-frame velocity; generate_traj expects body-frame.
-                    # Convert: v_body = R_z^T @ v_world  (R_z rotates body→world)
-                    _R_z = go2.R_z  # 3×3 yaw rotation matrix (body→world)
-                    _v_body = _R_z.T @ np.array([x_vel, y_vel, 0.0])
-                    x_vel_b, y_vel_b = _v_body[0], _v_body[1]
+                    # ── Body-frame velocity ──────────────────────────────
+                    # Glove compass heading → used directly as body-frame command.
+                    # Same locomotion logic for all camera modes.
+                    x_vel_b  = x_vel
+                    y_vel_b  = y_vel
+                    _speed_b = np.hypot(x_vel_b, y_vel_b)
 
-                    # 1st-person joystick mode: side component already drives ang_z
-                    # (set above); zero out y_vel_b so strafe doesn't fight the turn.
-                    if _cam_mode[0] == 2:
+                    # ── Map to MPC commands ──────────────────────────────
+                    if euler_shift:
+                        # MRP (0x07): differential — forward + yaw from single input.
+                        # Side component → ang_z (turn rate); no strafe.
+                        ang_z   = float(np.clip(
+                            glove_cfg.max_ang_vel * (y_vel_b / _speed_b if _speed_b > 0.01 else 0.0),
+                            -glove_cfg.max_ang_vel,
+                            glove_cfg.max_ang_vel,
+                        ))
                         y_vel_b = 0.0
+                    else:
+                        # MR (0x03): holonomic — move in body-frame direction, no yaw.
+                        ang_z = 0.0
 
                     # ── MPC solve  (every STEPS_PER_MPC control ticks) ───
                     if ctrl_i % STEPS_PER_MPC == 0:
@@ -352,12 +308,11 @@ def main() -> None:
                         sol   = mpc.solve_QP(go2, traj, False)
                         N     = traj.N
                         w_opt = sol["x"].full().flatten()
-                        # Only U_opt needed for control (skip X_opt)
                         U_opt = w_opt[12 * N :].reshape((12, N), order="F")
 
                         _print_status(
                             sim_time, glove_state, combo,
-                            x_vel, y_vel, ang_z,
+                            x_vel_b, y_vel_b, ang_z,
                             feat.status_str(),
                         )
 
@@ -366,8 +321,8 @@ def main() -> None:
                                 sim_time=sim_time,
                                 glove_state=glove_state,
                                 combo=combo,
-                                vx=x_vel,
-                                vy=y_vel,
+                                vx=x_vel_b,
+                                vy=y_vel_b,
                                 wz=ang_z,
                                 status=feat.status_str(),
                                 z_pos=z_pos,

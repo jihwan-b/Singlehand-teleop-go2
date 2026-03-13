@@ -15,7 +15,7 @@ REPO = Path(__file__).resolve().parents[2]
 # XML_PATH = REPO / "models" / "MJCF" / "go2" / "scene_square.xml"
 # XML_PATH = REPO / "models" / "MJCF" / "go2" / "scene_circle.xml"
 # XML_PATH = REPO / "models" / "MJCF" / "go2" / "scene_zigzag.xml"
-XML_PATH = REPO / "models" / "MJCF" / "go2" / "scene_zigzag_walled.xml"
+XML_PATH = REPO / "models" / "MJCF" / "go2" / "scene_circle_walled.xml"
 
 class MuJoCo_GO2_Model:
     def __init__(self):

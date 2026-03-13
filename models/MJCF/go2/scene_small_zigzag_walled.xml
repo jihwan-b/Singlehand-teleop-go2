@@ -1,0 +1,101 @@
+<mujoco model="go2 zigzag short demo">
+  <include file="go2.xml"/>
+
+  <!--
+    Zigzag SHORT demo course: 4 waypoints, 3 segments.
+    Robot spawns at wp_0 (0, 0) and navigates to wp_3 (6, 0).
+
+    Compared to scene_zigzag_walled.xml:
+      • Half the segments (3 vs 5) — shorter run for demo
+      • Y offset ±1.5 m  (vs ±3 m) — less sharp turning angles
+      • Corridor 1.5 m wide  (vs 1.0 m) — easier to navigate
+
+    Waypoints:
+      wp_0: (0,  0  )  ← robot spawn  (red)
+      wp_1: (2,  1.5)  top-right
+      wp_2: (4, -1.5)  bottom-right
+      wp_3: (6,  0  )  ← finish       (green)
+
+    Segment directions (d) and left perps (n):
+      Seg 0: wp_0→wp_1  len=2.5   d=( 0.8000, 0.6000)  n=(-0.6000, 0.8000)  ez= 0.6435 rad (36.87°)
+      Seg 1: wp_1→wp_2  len=3.606 d=( 0.5547,-0.8321)  n=( 0.8321, 0.5547)  ez=-0.9828 rad (-56.31°)
+      Seg 2: wp_2→wp_3  len=2.5   d=( 0.8000, 0.6000)  n=(-0.6000, 0.8000)  ez= 0.6435 rad (36.87°)
+
+    Corridor half-width hw = 0.75 m  (total 1.5 m wide)
+
+    Open ends:
+      L0 start = P0 + hw*n0 = (-0.450,  0.600)
+      R0 start = P0 - hw*n0 = ( 0.450, -0.600)
+      L2 end   = P3 + hw*n2 = ( 5.550,  0.600)
+      R2 end   = P3 - hw*n2 = ( 6.450, -0.600)
+
+    Miter intersection points (hw=0.75):
+      At wp_1 (2, 1.5):  L0∩L1 = (2.184, 2.576)   R0∩R1 = (1.816, 0.424)
+      At wp_2 (4,-1.5):  L1∩L2 = (4.184,-0.424)   R1∩R2 = (3.816,-2.576)
+
+    Wall segment parameters (center, half_len, euler_z in radians):
+      L0: from (-0.450,  0.600) to (2.184,  2.576)  ctr=( 0.867,  1.588) hl=1.646 ez= 0.6435
+      R0: from ( 0.450, -0.600) to (1.816,  0.424)  ctr=( 1.133, -0.088) hl=0.854 ez= 0.6435
+      L1: from ( 2.184,  2.576) to (4.184, -0.424)  ctr=( 3.184,  1.076) hl=1.803 ez=-0.9828
+      R1: from ( 1.816,  0.424) to (3.816, -2.576)  ctr=( 2.816, -1.076) hl=1.803 ez=-0.9828
+      L2: from ( 4.184, -0.424) to (5.550,  0.600)  ctr=( 4.867,  0.088) hl=0.854 ez= 0.6435
+      R2: from ( 3.816, -2.576) to (6.450, -0.600)  ctr=( 5.133, -1.588) hl=1.646 ez= 0.6435
+  -->
+
+  <statistic center="3 0 0" extent="5"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="-130" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="3 0 4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- ── Waypoint poles ──────────────────────────────────────────────────
+         Red   = start (robot spawn at 0,0)
+         Orange = intermediate turning points
+         Green  = finish                                                   -->
+    <geom name="wp_0" type="cylinder" pos="0  0   0.25" size="0.06 0.25" rgba="1.0 0.1 0.1 1" contype="0" conaffinity="0"/>
+    <geom name="wp_1" type="cylinder" pos="2  1.5 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="wp_2" type="cylinder" pos="4 -1.5 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="wp_3" type="cylinder" pos="6  0   0.25" size="0.06 0.25" rgba="0.1 0.9 0.1 1" contype="0" conaffinity="0"/>
+
+    <!-- ── Path segments (capsules) ──────────────────────────────────────── -->
+    <geom name="seg_0" type="capsule" fromto="0  0   0.04  2  1.5 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="seg_1" type="capsule" fromto="2  1.5 0.04  4 -1.5 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="seg_2" type="capsule" fromto="4 -1.5 0.04  6  0   0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+
+    <!-- ── Physical corridor walls (miter-cut, 1.5 m wide) ─────────────────
+         size="half_len 0.05 0.25"  (length, half-thickness, half-height)  -->
+
+    <!-- Seg 0 walls  ez=0.6435 (36.87°) -->
+    <geom name="wall_L0" type="box" pos=" 0.867  1.588 0.25" size="1.646 0.05 0.25" euler="0 0  0.6435" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_R0" type="box" pos=" 1.133 -0.088 0.25" size="0.854 0.05 0.25" euler="0 0  0.6435" rgba="0.55 0.55 0.55 1"/>
+
+    <!-- Seg 1 walls  ez=-0.9828 (-56.31°) -->
+    <geom name="wall_L1" type="box" pos=" 3.184  1.076 0.25" size="1.803 0.05 0.25" euler="0 0 -0.9828" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_R1" type="box" pos=" 2.816 -1.076 0.25" size="1.803 0.05 0.25" euler="0 0 -0.9828" rgba="0.55 0.55 0.55 1"/>
+
+    <!-- Seg 2 walls  ez=0.6435 (36.87°) -->
+    <geom name="wall_L2" type="box" pos=" 4.867  0.088 0.25" size="0.854 0.05 0.25" euler="0 0  0.6435" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_R2" type="box" pos=" 5.133 -1.588 0.25" size="1.646 0.05 0.25" euler="0 0  0.6435" rgba="0.55 0.55 0.55 1"/>
+
+  </worldbody>
+
+  <!-- Spawn facing +X (default, 0°) -->
+  <keyframe>
+    <key name="home" qpos="0 0 0.27 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
+  </keyframe>
+
+</mujoco>

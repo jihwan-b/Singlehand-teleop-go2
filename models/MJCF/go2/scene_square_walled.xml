@@ -32,9 +32,9 @@
 
     <!-- Corner poles: red = robot start, orange = other corners -->
     <geom name="corner_start" type="cylinder" pos="0  0  0.25" size="0.06 0.25" rgba="1 0.1 0.1 1" contype="0" conaffinity="0"/>
-    <geom name="corner_1"     type="cylinder" pos="10 0  0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="corner_2"     type="cylinder" pos="10 10 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
-    <geom name="corner_3"     type="cylinder" pos="0  10 0.25" size="0.06 0.25" rgba="1 0.5 0.0 1" contype="0" conaffinity="0"/>
+    <geom name="corner_1"     type="cylinder" pos="10 0  0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="corner_2"     type="cylinder" pos="10 10 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="corner_3"     type="cylinder" pos="0  10 0.125" size="0.06 0.125" rgba="1 0.5 0.0 0.3" contype="0" conaffinity="0"/>
 
     <!-- Edge lines: yellow flat boxes lying on the ground -->
     <geom name="edge_south" type="box" pos="5  0  0.01" size="5    0.04 0.01" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
@@ -63,5 +63,11 @@
     <geom name="wall_west_inner"  type="box" pos=" 0.5  5.0 0.25" size="0.05 4.5  0.25" rgba="0.55 0.55 0.55 1"/>
 
   </worldbody>
+
+  <!-- Spawn facing +X (default, 0°) -->
+  <keyframe>
+    <key name="home" qpos="0 0 0.27 1 0 0 0 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
+  </keyframe>
 
 </mujoco>

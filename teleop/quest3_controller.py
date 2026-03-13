@@ -21,8 +21,8 @@ Velocity mapping  (body-frame, no auto-yaw needed):
   Left  stick X  →  -vy  (strafe right / left; note sign: +Y = left in robot frame)
   Right stick X  →  -wz  (yaw right / left; CCW positive in std robotics)
 
-Unlike the glove, Quest 3 does not have a thumb-push-away (DAMP) gesture.
-is_thumb_away() always returns False.
+Unlike the glove, Quest 3 does not have a HOVERING gesture.
+is_hovering() always returns False.
 """
 
 from __future__ import annotations
@@ -113,8 +113,8 @@ class QuestController:
         with self._lock:
             return self._state == "ON"
 
-    def is_thumb_away(self) -> bool:
-        """Always False — Quest 3 has no DAMP equivalent."""
+    def is_hovering(self) -> bool:
+        """Always False — Quest 3 has no HOVERING equivalent."""
         return False
 
     def get_raw(self) -> dict:
@@ -167,6 +167,8 @@ class QuestController:
         left_st = None
         if left_idx != openvr.k_unTrackedDeviceIndexInvalid:
             _, left_st = vr.getControllerState(left_idx)
+        else:
+            print("[Quest3] WARNING: left controller not detected — vx/vy will be zero")
 
         # ── Right controller ──────────────────────────────────────────────────
         rbtn = right_st.ulButtonPressed

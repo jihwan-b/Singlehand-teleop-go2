@@ -1,7 +1,7 @@
 """Glove controller for Go2 teleop via serial communication.
 
 Adapted from reference/glove_controller.py.
-Updated for united_0210.ino serial format:
+Updated for united_0310.ino serial format:
   X_corr, Y_corr, Z_corr, Heading, Displacement,
   State, Zone, HapticMode, Bending:OXX, Fingers
 
@@ -9,6 +9,13 @@ Finger bitmask (from .ino):
   bit 0 (0x01) = Middle  finger [3]
   bit 1 (0x02) = Ring    finger [4]
   bit 2 (0x04) = Pinky   finger [5]
+
+State machine mirrors united_0310.ino (magnitude-based, hysteresis):
+  0 = OFF      (magnitude < THRESHOLD_OFF_MAX)
+  1 = WAITING  (transitioning to ON, 500 ms timer)
+  2 = ON       (magnitude >= THRESHOLD_ON_MIN)
+  3 = HOVERING (THRESHOLD_HOVER_MIN <= magnitude < THRESHOLD_HOVER_MAX)
+  Dead zone    (THRESHOLD_HOVER_MAX <= magnitude < THRESHOLD_ON_MIN) → hold state
 """
 
 from __future__ import annotations
@@ -41,27 +48,29 @@ class GloveConfig:
     port: str = "/dev/ttyACM0"  # Linux; use COM3 / /dev/cu.usbmodem* on other OS
     baud_rate: int = 115200
 
-    # Sensor calibration (must match .ino constants)
-    max_displacement: float = 80.0   # MAX_DISPLACEMENT in .ino
-    magnet_threshold: float = 90.0   # MAGNET_THRESHOLD in .ino
-    activation_time:  float = 0.5    # ACTIVATION_TIME_MS / 1000
+    # Magnitude thresholds — match united_0310.ino constants exactly
+    # Arduino uses 3D norm: sqrt(X_corr^2 + Y_corr^2 + Z_corr^2)
+    thresh_off_max:   float = 500.0    # THRESHOLD_OFF_MAX   — fully away
+    thresh_hover_min: float = 500.0    # THRESHOLD_HOVER_MIN — hover zone entry
+    thresh_hover_max: float = 1300.0   # THRESHOLD_HOVER_MAX — hover zone exit
+    thresh_on_min:    float = 1500.0   # THRESHOLD_ON_MIN    — magnet close
+    # Dead zone: thresh_hover_max <= mag < thresh_on_min → hold previous state
+
+    activation_time:  float = 0.5     # ACTIVATION_TIME_MS / 1000
+
+    # Displacement scaling — match .ino constants
+    max_displacement: float = 80.0    # MAX_DISPLACEMENT in .ino
 
     # Deadzone: displacements below this ratio of max are ignored
-    deadzone_ratio: float = 0.35     # CENTER_DEADZONE / MAX_DISPLACEMENT ≈ 28/80
+    deadzone_ratio: float = 0.35      # CENTER_DEADZONE / MAX_DISPLACEMENT ≈ 28/80
 
     # Velocity scaling
     max_lin_vel: float = 0.8    # m/s
     max_ang_vel: float = 1.5    # rad/s
 
-    # "holonomic"   → full (vx, vy, 0)  strafing
+    # "holonomic"    → full (vx, vy, 0)  strafing
     # "differential" → (vx, 0, wz)  like a wheeled robot
     control_mode: str = "holonomic"
-
-    # Thumb "push away" gesture (엄지 멀리 때기)
-    # When DAMP_LOW ≤ abs(Z_corr) < magnet_threshold → "DAMP" state
-    # Physics: field ∝ 1/r³, so this zone is ~20-60% farther than ON position
-    # Set to 0.0 to disable the DAMP state entirely.
-    thumb_damp_low: float = 25.0
 
 
 # ---------------------------------------------------------------------------
@@ -74,10 +83,13 @@ class GloveController:
     state.  Main thread calls get_velocity_command() / get_finger_combo()
     at any rate.
 
-    State machine mirrors the Arduino:
-      OFF  → WAITING (magnet detected)
-      WAITING → ON   (held ≥ activation_time)
-      * → OFF        (magnet removed)
+    State machine mirrors united_0310.ino:
+      OFF      → WAITING  (magnitude >= thresh_on_min, start 500 ms timer)
+      WAITING  → ON       (held >= activation_time)
+      ON/WAIT  → HOVERING (thresh_hover_min <= magnitude < thresh_hover_max)
+      HOVERING → WAITING  (magnitude >= thresh_on_min, restart timer)
+      any      → OFF      (magnitude < thresh_off_max)
+      dead zone (thresh_hover_max <= mag < thresh_on_min) → hold current state
     """
 
     def __init__(self, config: GloveConfig | None = None):
@@ -95,13 +107,12 @@ class GloveController:
         self._heading     = 0.0   # degrees
         self._displacement= 0.0   # sensor units
         self._zone        = 0     # 0–4 haptic zone
-        self._arduino_state = 0   # 0=OFF,1=WAITING,2=ON from Arduino
+        self._arduino_state = 0   # 0=OFF,1=WAITING,2=ON,3=HOVERING from Arduino
         self._finger_bent = [False, False, False]   # Middle, Ring, Pinky
         self._finger_combo= 0     # bitmask
 
         # ── Python state machine ─────────────────────────────────────────
-        # States: "OFF" | "WAITING" | "ON" | "DAMP"
-        #   DAMP = thumb partially pulled away (DAMP_LOW ≤ Z_corr < threshold)
+        # States: "OFF" | "WAITING" | "ON" | "HOVERING"
         self._ui_state            = "OFF"
         self._detection_start_time= 0.0
 
@@ -136,7 +147,7 @@ class GloveController:
             self._serial.close()
 
     def get_velocity_command(self) -> Tuple[float, float, float]:
-        """Thread-safe read of (lin_x, lin_y, ang_z).  Returns (0,0,0) when OFF."""
+        """Thread-safe read of (lin_x, lin_y, ang_z).  Returns (0,0,0) when not ON."""
         with self._lock:
             return self._lin_x, self._lin_y, self._ang_z
 
@@ -146,7 +157,7 @@ class GloveController:
             return self._finger_combo
 
     def get_state(self) -> str:
-        """Returns "OFF", "WAITING", or "ON"."""
+        """Returns "OFF", "WAITING", "ON", or "HOVERING"."""
         with self._lock:
             return self._ui_state
 
@@ -154,14 +165,14 @@ class GloveController:
         with self._lock:
             return self._ui_state == "ON"
 
-    def is_thumb_away(self) -> bool:
-        """True when in DAMP state (thumb partially pulled away from sensor).
+    def is_hovering(self) -> bool:
+        """True when in HOVERING state (magnet in intermediate distance range).
 
-        Use this to trigger velocity-hold or exponential decay in the feature
-        manager instead of an abrupt stop.
+        Use this to trigger a feature in the feature manager.
+        Corresponds to Arduino uiState == 3 (HOVERING).
         """
         with self._lock:
-            return self._ui_state == "DAMP"
+            return self._ui_state == "HOVERING"
 
     def get_raw(self) -> dict:
         """Return all raw sensor values (useful for debugging)."""
@@ -221,53 +232,65 @@ class GloveController:
                     self._finger_bent[i] = (s[i] == "O")
 
     def _update_state(self) -> None:
-        """Run Python-side state machine and recompute velocity output.
+        """Run Python-side state machine mirroring united_0310.ino.
 
-        State transitions:
-          OFF     → (Z_corr ≥ threshold)               → WAITING
-          WAITING → (held ≥ activation_time)            → ON
-          ON      → (damp_low ≤ Z_corr < threshold)    → DAMP  (thumb away)
-          DAMP    → (Z_corr ≥ threshold)                → ON    (thumb back)
-          ON/DAMP → (Z_corr < damp_low)                 → OFF
-          WAITING → (Z_corr < threshold)                → OFF
+        Uses 3D magnitude = sqrt(X_corr^2 + Y_corr^2 + Z_corr^2).
+
+        Thresholds (matching .ino):
+          magnitude >= thresh_on_min (1500)               → target ON
+          thresh_hover_min (600) <= mag < thresh_hover_max (1300) → target HOVERING
+          magnitude < thresh_off_max (600)                → target OFF
+          thresh_hover_max (1300) <= mag < thresh_on_min (1500)   → dead zone, hold state
+
+        Transitions:
+          OFF/HOVERING + target=ON  → WAITING (start 500 ms timer)
+          WAITING      + target=ON  → ON (after activation_time)
+          ON/WAITING   + target=HOVERING → HOVERING (immediate)
+          any          + target=OFF → OFF (immediate)
+          dead zone                → no change
         """
         with self._lock:
-            z_abs      = abs(self._z_corr)
-            threshold  = self.cfg.magnet_threshold
-            damp_low   = self.cfg.thumb_damp_low
-            now        = time.time()
+            mag = float(np.sqrt(
+                self._x_corr ** 2 + self._y_corr ** 2 + self._z_corr ** 2
+            ))
+            now = time.time()
+            cfg = self.cfg
 
-            is_magnet  = z_abs >= threshold
-            is_damp    = (damp_low > 0.0) and (damp_low <= z_abs < threshold)
-            is_gone    = z_abs < max(damp_low, 1.0)   # fully away
+            # Determine target (None = dead zone, hold current state)
+            if mag >= cfg.thresh_on_min:
+                target = "ON"
+            elif cfg.thresh_hover_min <= mag < cfg.thresh_hover_max:
+                target = "HOVERING"
+            elif mag < cfg.thresh_off_max:
+                target = "OFF"
+            else:
+                target = None   # dead zone: thresh_hover_max <= mag < thresh_on_min
 
-            if is_magnet:
-                if self._ui_state in ("OFF", "DAMP"):
+            if target == "ON":
+                if self._ui_state in ("OFF", "HOVERING"):
                     self._ui_state = "WAITING"
                     self._detection_start_time = now
                 elif self._ui_state == "WAITING":
-                    if now - self._detection_start_time >= self.cfg.activation_time:
+                    if now - self._detection_start_time >= cfg.activation_time:
                         self._ui_state = "ON"
                 # ON: stay ON
 
-            elif is_damp:
-                # Thumb partially away — only meaningful when previously active
-                if self._ui_state in ("ON",):
-                    self._ui_state = "DAMP"
-                elif self._ui_state == "WAITING":
-                    self._ui_state = "OFF"   # never fully activated
+            elif target == "HOVERING":
+                # Immediate transition to HOVERING from any active state
+                self._ui_state = "HOVERING"
+                self._detection_start_time = 0.0
 
-            else:   # is_gone (or damp disabled and not in magnet range)
+            elif target == "OFF":
                 self._ui_state = "OFF"
                 self._detection_start_time = 0.0
 
-            # Velocity is only recomputed here for ON; DAMP is handled externally
+            # target is None (dead zone) → no state change
+
+            # Velocity output
             if self._ui_state == "ON":
                 self._compute_velocity()
-            elif self._ui_state != "DAMP":
-                # OFF / WAITING → zero velocity
+            else:
                 self._lin_x = self._lin_y = self._ang_z = 0.0
-            # DAMP: leave _lin_x/y/z_ang unchanged (feature manager handles decay)
 
     def _compute_velocity(self) -> None:
         """Convert heading + displacement → (lin_x, lin_y, ang_z).  Lock held by caller."""

@@ -1,0 +1,181 @@
+<mujoco model="go2 small circle path walled">
+  <include file="go2.xml"/>
+
+  <!--
+    Small circle path: radius 2 m, centre at (2, 0).
+    Robot spawns at pole_12 (0, 0) = 180° position (red).
+    Complete one full CW lap to return to (0, 0).
+
+    24 poles spaced every 15° — 3× smoother than original scene_circle_walled.
+    Pole position: (2 + 2·cos(i·15°),  2·sin(i·15°))
+
+    Poles:
+      i= 0  θ=  0°  ( 4.000,  0.000)
+      i= 1  θ= 15°  ( 3.932,  0.518)
+      i= 2  θ= 30°  ( 3.732,  1.000)
+      i= 3  θ= 45°  ( 3.414,  1.414)
+      i= 4  θ= 60°  ( 3.000,  1.732)
+      i= 5  θ= 75°  ( 2.518,  1.932)
+      i= 6  θ= 90°  ( 2.000,  2.000)
+      i= 7  θ=105°  ( 1.482,  1.932)
+      i= 8  θ=120°  ( 1.000,  1.732)
+      i= 9  θ=135°  ( 0.586,  1.414)
+      i=10  θ=150°  ( 0.268,  1.000)
+      i=11  θ=165°  ( 0.068,  0.518)
+      i=12  θ=180°  ( 0.000,  0.000)  RED = spawn & finish
+      i=13  θ=195°  ( 0.068, -0.518)
+      i=14  θ=210°  ( 0.268, -1.000)
+      i=15  θ=225°  ( 0.586, -1.414)
+      i=16  θ=240°  ( 1.000, -1.732)
+      i=17  θ=255°  ( 1.482, -1.932)
+      i=18  θ=270°  ( 2.000, -2.000)
+      i=19  θ=285°  ( 2.518, -1.932)
+      i=20  θ=300°  ( 3.000, -1.732)
+      i=21  θ=315°  ( 3.414, -1.414)
+      i=22  θ=330°  ( 3.732, -1.000)
+      i=23  θ=345°  ( 3.932, -0.518)
+
+    Corridor: 1 m wide — outer ring r=2.5 m, inner ring r=1.5 m.
+    24 box segments per ring.  euler_z = θ + π/2  (tangential).
+
+    Half-lengths (chord ÷ 2 for Δθ=15°):
+      Outer (r=2.5): 2.5·sin(7.5°) = 0.326 → 0.33 m (slight overlap)
+      Inner (r=1.5): 1.5·sin(7.5°) = 0.196 → 0.20 m
+
+    Spawn heading: tangent at 180° going CW = −90° (south, −Y direction)
+    yaw=−90° → qw=0.7071, qz=−0.7071
+  -->
+
+  <statistic center="2 0 0" extent="4"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.3 0.3 0.3" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global azimuth="-130" elevation="-20"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0.2"/>
+  </asset>
+
+  <worldbody>
+    <light pos="2 0 4" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+    <!-- ── Poles (Red = spawn/finish, Orange = intermediate) ─────────────── -->
+    <geom name="pole_0"  type="cylinder" pos=" 4.000  0.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_1"  type="cylinder" pos=" 3.932  0.518 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_2"  type="cylinder" pos=" 3.732  1.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_3"  type="cylinder" pos=" 3.414  1.414 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_4"  type="cylinder" pos=" 3.000  1.732 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_5"  type="cylinder" pos=" 2.518  1.932 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_6"  type="cylinder" pos=" 2.000  2.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_7"  type="cylinder" pos=" 1.482  1.932 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_8"  type="cylinder" pos=" 1.000  1.732 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_9"  type="cylinder" pos=" 0.586  1.414 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_10" type="cylinder" pos=" 0.268  1.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_11" type="cylinder" pos=" 0.068  0.518 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_12" type="cylinder" pos=" 0.000  0.000 0.25" size="0.06 0.25" rgba="1.0 0.1 0.1 1" contype="0" conaffinity="0"/>
+    <geom name="pole_13" type="cylinder" pos=" 0.068 -0.518 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_14" type="cylinder" pos=" 0.268 -1.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_15" type="cylinder" pos=" 0.586 -1.414 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_16" type="cylinder" pos=" 1.000 -1.732 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_17" type="cylinder" pos=" 1.482 -1.932 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_18" type="cylinder" pos=" 2.000 -2.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_19" type="cylinder" pos=" 2.518 -1.932 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_20" type="cylinder" pos=" 3.000 -1.732 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_21" type="cylinder" pos=" 3.414 -1.414 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_22" type="cylinder" pos=" 3.732 -1.000 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+    <geom name="pole_23" type="cylinder" pos=" 3.932 -0.518 0.125" size="0.06 0.125" rgba="1.0 0.5 0.0 0.3" contype="0" conaffinity="0"/>
+
+    <!-- ── Arc segments (capsule fromto, CW order) ───────────────────────── -->
+    <geom name="arc_0"  type="capsule" fromto=" 4.000  0.000 0.04   3.932  0.518 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_1"  type="capsule" fromto=" 3.932  0.518 0.04   3.732  1.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_2"  type="capsule" fromto=" 3.732  1.000 0.04   3.414  1.414 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_3"  type="capsule" fromto=" 3.414  1.414 0.04   3.000  1.732 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_4"  type="capsule" fromto=" 3.000  1.732 0.04   2.518  1.932 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_5"  type="capsule" fromto=" 2.518  1.932 0.04   2.000  2.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_6"  type="capsule" fromto=" 2.000  2.000 0.04   1.482  1.932 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_7"  type="capsule" fromto=" 1.482  1.932 0.04   1.000  1.732 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_8"  type="capsule" fromto=" 1.000  1.732 0.04   0.586  1.414 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_9"  type="capsule" fromto=" 0.586  1.414 0.04   0.268  1.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_10" type="capsule" fromto=" 0.268  1.000 0.04   0.068  0.518 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_11" type="capsule" fromto=" 0.068  0.518 0.04   0.000  0.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_12" type="capsule" fromto=" 0.000  0.000 0.04   0.068 -0.518 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_13" type="capsule" fromto=" 0.068 -0.518 0.04   0.268 -1.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_14" type="capsule" fromto=" 0.268 -1.000 0.04   0.586 -1.414 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_15" type="capsule" fromto=" 0.586 -1.414 0.04   1.000 -1.732 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_16" type="capsule" fromto=" 1.000 -1.732 0.04   1.482 -1.932 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_17" type="capsule" fromto=" 1.482 -1.932 0.04   2.000 -2.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_18" type="capsule" fromto=" 2.000 -2.000 0.04   2.518 -1.932 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_19" type="capsule" fromto=" 2.518 -1.932 0.04   3.000 -1.732 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_20" type="capsule" fromto=" 3.000 -1.732 0.04   3.414 -1.414 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_21" type="capsule" fromto=" 3.414 -1.414 0.04   3.732 -1.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_22" type="capsule" fromto=" 3.732 -1.000 0.04   3.932 -0.518 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+    <geom name="arc_23" type="capsule" fromto=" 3.932 -0.518 0.04   4.000  0.000 0.04" size="0.04" rgba="1 1 0 0.9" contype="0" conaffinity="0"/>
+
+    <!-- ── Outer ring walls (r=2.5 m, half-len=0.33 m) ──────────────────── -->
+    <geom name="wall_out_0"  type="box" pos=" 4.500  0.000 0.25" size="0.33 0.05 0.25" euler="0 0 1.5708" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_1"  type="box" pos=" 4.415  0.647 0.25" size="0.33 0.05 0.25" euler="0 0 1.8326" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_2"  type="box" pos=" 4.165  1.250 0.25" size="0.33 0.05 0.25" euler="0 0 2.0944" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_3"  type="box" pos=" 3.768  1.768 0.25" size="0.33 0.05 0.25" euler="0 0 2.3562" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_4"  type="box" pos=" 3.250  2.165 0.25" size="0.33 0.05 0.25" euler="0 0 2.6180" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_5"  type="box" pos=" 2.647  2.415 0.25" size="0.33 0.05 0.25" euler="0 0 2.8798" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_6"  type="box" pos=" 2.000  2.500 0.25" size="0.33 0.05 0.25" euler="0 0 3.1416" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_7"  type="box" pos=" 1.353  2.415 0.25" size="0.33 0.05 0.25" euler="0 0 3.4034" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_8"  type="box" pos=" 0.750  2.165 0.25" size="0.33 0.05 0.25" euler="0 0 3.6652" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_9"  type="box" pos=" 0.232  1.768 0.25" size="0.33 0.05 0.25" euler="0 0 3.9270" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_10" type="box" pos="-0.165  1.250 0.25" size="0.33 0.05 0.25" euler="0 0 4.1888" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_11" type="box" pos="-0.415  0.647 0.25" size="0.33 0.05 0.25" euler="0 0 4.4506" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_12" type="box" pos="-0.500  0.000 0.25" size="0.33 0.05 0.25" euler="0 0 4.7124" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_13" type="box" pos="-0.415 -0.647 0.25" size="0.33 0.05 0.25" euler="0 0 4.9742" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_14" type="box" pos="-0.165 -1.250 0.25" size="0.33 0.05 0.25" euler="0 0 5.2360" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_15" type="box" pos=" 0.232 -1.768 0.25" size="0.33 0.05 0.25" euler="0 0 5.4978" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_16" type="box" pos=" 0.750 -2.165 0.25" size="0.33 0.05 0.25" euler="0 0 5.7596" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_17" type="box" pos=" 1.353 -2.415 0.25" size="0.33 0.05 0.25" euler="0 0 6.0214" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_18" type="box" pos=" 2.000 -2.500 0.25" size="0.33 0.05 0.25" euler="0 0 0.0000" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_19" type="box" pos=" 2.647 -2.415 0.25" size="0.33 0.05 0.25" euler="0 0 0.2618" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_20" type="box" pos=" 3.250 -2.165 0.25" size="0.33 0.05 0.25" euler="0 0 0.5236" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_21" type="box" pos=" 3.768 -1.768 0.25" size="0.33 0.05 0.25" euler="0 0 0.7854" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_22" type="box" pos=" 4.165 -1.250 0.25" size="0.33 0.05 0.25" euler="0 0 1.0472" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_out_23" type="box" pos=" 4.415 -0.647 0.25" size="0.33 0.05 0.25" euler="0 0 1.3090" rgba="0.55 0.55 0.55 1"/>
+
+    <!-- ── Inner ring walls (r=1.5 m, half-len=0.20 m) ──────────────────── -->
+    <geom name="wall_in_0"  type="box" pos="3.500  0.000 0.25" size="0.20 0.05 0.25" euler="0 0 1.5708" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_1"  type="box" pos="3.449  0.388 0.25" size="0.20 0.05 0.25" euler="0 0 1.8326" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_2"  type="box" pos="3.299  0.750 0.25" size="0.20 0.05 0.25" euler="0 0 2.0944" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_3"  type="box" pos="3.061  1.061 0.25" size="0.20 0.05 0.25" euler="0 0 2.3562" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_4"  type="box" pos="2.750  1.299 0.25" size="0.20 0.05 0.25" euler="0 0 2.6180" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_5"  type="box" pos="2.388  1.449 0.25" size="0.20 0.05 0.25" euler="0 0 2.8798" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_6"  type="box" pos="2.000  1.500 0.25" size="0.20 0.05 0.25" euler="0 0 3.1416" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_7"  type="box" pos="1.612  1.449 0.25" size="0.20 0.05 0.25" euler="0 0 3.4034" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_8"  type="box" pos="1.250  1.299 0.25" size="0.20 0.05 0.25" euler="0 0 3.6652" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_9"  type="box" pos="0.939  1.061 0.25" size="0.20 0.05 0.25" euler="0 0 3.9270" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_10" type="box" pos="0.701  0.750 0.25" size="0.20 0.05 0.25" euler="0 0 4.1888" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_11" type="box" pos="0.551  0.388 0.25" size="0.20 0.05 0.25" euler="0 0 4.4506" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_12" type="box" pos="0.500  0.000 0.25" size="0.20 0.05 0.25" euler="0 0 4.7124" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_13" type="box" pos="0.551 -0.388 0.25" size="0.20 0.05 0.25" euler="0 0 4.9742" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_14" type="box" pos="0.701 -0.750 0.25" size="0.20 0.05 0.25" euler="0 0 5.2360" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_15" type="box" pos="0.939 -1.061 0.25" size="0.20 0.05 0.25" euler="0 0 5.4978" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_16" type="box" pos="1.250 -1.299 0.25" size="0.20 0.05 0.25" euler="0 0 5.7596" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_17" type="box" pos="1.612 -1.449 0.25" size="0.20 0.05 0.25" euler="0 0 6.0214" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_18" type="box" pos="2.000 -1.500 0.25" size="0.20 0.05 0.25" euler="0 0 0.0000" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_19" type="box" pos="2.388 -1.449 0.25" size="0.20 0.05 0.25" euler="0 0 0.2618" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_20" type="box" pos="2.750 -1.299 0.25" size="0.20 0.05 0.25" euler="0 0 0.5236" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_21" type="box" pos="3.061 -1.061 0.25" size="0.20 0.05 0.25" euler="0 0 0.7854" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_22" type="box" pos="3.299 -0.750 0.25" size="0.20 0.05 0.25" euler="0 0 1.0472" rgba="0.55 0.55 0.55 1"/>
+    <geom name="wall_in_23" type="box" pos="3.449 -0.388 0.25" size="0.20 0.05 0.25" euler="0 0 1.3090" rgba="0.55 0.55 0.55 1"/>
+
+  </worldbody>
+
+  <!-- Spawn at (0,0) facing south (CW tangent at 180°): yaw=-90° -->
+  <!-- qw=cos(-45°)=0.7071, qz=sin(-45°)=-0.7071 -->
+  <keyframe>
+    <key name="home" qpos="0 0 0.27 0.7071 0 0 -0.7071 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8"
+      ctrl="0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8 0 0.9 -1.8" />
+  </keyframe>
+
+</mujoco>
